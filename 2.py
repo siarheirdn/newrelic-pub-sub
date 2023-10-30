@@ -1,39 +1,41 @@
 import newrelic.agent
 from google.cloud import pubsub_v1
+from concurrent.futures import TimeoutError
 
-def process_message(message):
-    # Extract trace context from the message
-    data = message.data
-    trace_id = message.attributes.get("trace_id")
-    span_id = message.attributes.get("span_id")
+newrelic.agent.initialize(config_file='newrelic2.ini')
+application = newrelic.agent.register_application(timeout=10.0)
 
-    # Initialize the New Relic agent (ensure NEW_RELIC_LICENSE_KEY and NEW_RELIC_APP_NAME are set)
-    newrelic.agent.initialize()
+project_id = "cognitotest-331018"
+subscription_id = "test123-sub"
+timeout = 5.0
 
-    # Create a custom trace segment with the trace context
-    with newrelic.agent.AutonamingTransaction(
-        application="MySubscriberApp",
-        trace_id=trace_id,
-        span_id=span_id,
-        parent_span_id=newrelic.agent.current_transaction().span_id,
-        force_terminate=True,
-    ):
-        print("Received event with trace ID:", trace_id)
-        print("Event data:", data)
+@newrelic.agent.background_task(application, name="SubscriberEvent")
+def callback(message: pubsub_v1.subscriber.message.Message) -> None:
+    print(f"Received {message}.")
+    if message.attributes:
+        print("Attributes:")
+        for key in message.attributes:
+            value = message.attributes.get(key)
+            print(f"{key}: {value}")
+            if key == 'traceID':
+                payload = value
+                print("accept_distributed_trace_payload")
+                newrelic.agent.accept_distributed_trace_payload(payload, transport_type='Queue')
 
-    # Acknowledge the message to confirm its receipt
     message.ack()
 
 def main():
-    # Subscribe to the Pub/Sub topic and process messages
-    project_id = "your-project-id"
-    subscription_id = "your-pubsub-subscription"
     subscriber = pubsub_v1.SubscriberClient()
     subscription_path = subscriber.subscription_path(project_id, subscription_id)
+    streaming_pull_future = subscriber.subscribe(subscription_path, callback=callback)
+    print(f"Listening for messages on {subscription_path}..\n")
 
-    future = subscriber.subscribe(subscription_path, callback=process_message)
-    print("Listening for events...")
-    future.result()
+    with subscriber:
+        try:
+            streaming_pull_future.result(timeout=timeout)
+        except TimeoutError:
+            streaming_pull_future.cancel()
+            streaming_pull_future.result()
 
 if __name__ == "__main__":
     main()
