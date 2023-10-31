@@ -1,0 +1,11 @@
+<Project>
+  <Target Name="CheckIfThereExistsNotValidReferences" BeforeTargets="build">
+    <ItemGroup>
+      <InValidReferences Include="@(Reference)" />
+      <SdkReferences Include="@(Reference)" Condition="$([System.String]::new('%(Reference.HintPath)').Contains('C:\Program Files\dotnet\sdk\NuGetFallbackFolder'))" />
+      <InValidReferences Remove="@(SdkReferences)" />
+    </ItemGroup>
+    <Message Text="aaaaaaaaa @(InValidReferences)" Importance="high" Condition="'@(InValidReferences)'!=''" />
+    <Error Text=" Raise the error cause there exists invalid references!" Condition="'@(InValidReferences)'!=''" />
+  </Target>
+</Project>
