@@ -1,0 +1,23 @@
+# Extract the "AGE" field from the kubectl output (replace with your actual output)
+age="6d22h"  # Replace with your pod's actual AGE
+
+# Parse the "AGE" field and calculate the equivalent time in seconds
+time_in_seconds=0
+while IFS= read -r part; do
+  value="${part%[a-zA-Z]*}"  # Extract numeric value
+  unit="${part#*[0-9]}"     # Extract time unit
+
+  case $unit in
+    "d") time_in_seconds=$((time_in_seconds + value * 86400));;  # 1 day = 86400 seconds
+    "h") time_in_seconds=$((time_in_seconds + value * 3600));;   # 1 hour = 3600 seconds
+    "m") time_in_seconds=$((time_in_seconds + value * 60));    # 1 minute = 60 seconds
+  esac
+done <<< "$age"
+
+# Get the current timestamp in seconds since the epoch
+current_timestamp=$(date +%s)
+
+# Calculate the difference between the current time and the pod's "AGE"
+time_difference=$((current_timestamp - time_in_seconds))
+
+echo "Time difference in seconds: $time_difference seconds"
