@@ -9,6 +9,4 @@ JSON_DATA=$(cat "$FILENAME")
 curl "$NR_GRAPH_URL" \
   -H "API-Key: $NR_API_KEY" \
   -H 'Content-Type: application/json' \
-  -H 'API-Key: NRAK-3JR6X' \
-  --data-binary '{"query":"mutation { dashboardCreate(accountId: 4151 dashboard:  }  ) { errors { description type } }}", "variables":""}'
-  
+  -d "{\"query\":\"mutation { dashboardCreate(accountId: $ACCOUNT_ID, dashboard: $JSON_DATA) { errors { description type } }}\", \"variables\":{}}"
